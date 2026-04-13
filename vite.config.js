@@ -7,4 +7,14 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  server: {
+    proxy: {
+      '/api/landing-lead': {
+        target: 'https://pruebasintercert.app.n8n.cloud',
+        changeOrigin: true,
+        secure: true,
+        rewrite: () => '/webhook-test/landing-lead',
+      },
+    },
+  },
 })
