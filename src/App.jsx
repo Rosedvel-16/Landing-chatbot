@@ -66,8 +66,8 @@ const AnimatedCounter = ({ end, prefix = "", suffix = "", duration = 2000 }) => 
 };
 
 
-const N8N_LANDING_LEAD_URL =
-  'https://pruebasintercert.app.n8n.cloud/webhook-test/landing-lead';
+/** Misma ruta en prod (Vercel → api/landing-lead.js) y en dev (proxy en vite.config). */
+const LANDING_LEAD_API = '/api/landing-lead';
 /** WhatsApp E.164 de prueba (51 + 9 dígitos). Ejemplo de payload: "519XXXXXXXX". */
 const USER_PHONE_TEST = '51987654321';
 const MAX_LANDING_MESSAGE_LENGTH = 4000;
@@ -106,7 +106,7 @@ function App() {
     setLeadSuccess(false);
     setLeadLoading(true);
     try {
-      const res = await fetch(N8N_LANDING_LEAD_URL, {
+      const res = await fetch(LANDING_LEAD_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ruc: trimmed, userPhone: USER_PHONE_TEST }),
