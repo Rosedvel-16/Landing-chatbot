@@ -66,6 +66,12 @@ const AnimatedCounter = ({ end, prefix = "", suffix = "", duration = 2000 }) => 
 };
 
 
+const N8N_LANDING_LEAD_URL =
+  'https://pruebasintercert.app.n8n.cloud/webhook-test/landing-lead';
+/** WhatsApp E.164 de prueba (51 + 9 dígitos). Ejemplo de payload: "519XXXXXXXX". */
+const USER_PHONE_TEST = '51987654321';
+const MAX_LANDING_MESSAGE_LENGTH = 4000;
+
 // ==========================================
 // COMPONENTE PRINCIPAL APP
 // ==========================================
@@ -73,10 +79,47 @@ function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [openFaq, setOpenFaq] = useState(null);
   const [isWebChatOpen, setIsWebChatOpen] = useState(false);
+  /**
+   * Valor enviado al webhook en el campo `ruc` (compatibilidad con n8n).
+   * Puede ser un RUC de 11 dígitos u otro texto; los nodos del flujo interpretan el contenido.
+   */
+  const [ruc, setRuc] = useState('');
+  const [leadLoading, setLeadLoading] = useState(false);
+  const [leadSuccess, setLeadSuccess] = useState(false);
+  const [leadError, setLeadError] = useState('');
 
-  const numeroWhatsApp = "15551853487"; 
-  const mensajeDefault = "¡Hola! Quiero probar el buscador de licitaciones. Mi RUC es: ";
-  const linkWhatsApp = `https://wa.me/${numeroWhatsApp}?text=${encodeURIComponent(mensajeDefault)}`;
+  const handleRucChange = (e) => {
+    const v = e.target.value.slice(0, MAX_LANDING_MESSAGE_LENGTH);
+    setRuc(v);
+    if (leadSuccess) setLeadSuccess(false);
+    if (leadError) setLeadError('');
+  };
+
+  const handleSubmit = async () => {
+    const trimmed = ruc.trim();
+    if (!trimmed) {
+      setLeadError('Escribe tu RUC o mensaje antes de enviar.');
+      setLeadSuccess(false);
+      return;
+    }
+    setLeadError('');
+    setLeadSuccess(false);
+    setLeadLoading(true);
+    try {
+      const res = await fetch(N8N_LANDING_LEAD_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ruc: trimmed, userPhone: USER_PHONE_TEST }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setRuc('');
+      setLeadSuccess(true);
+    } catch {
+      setLeadError('No se pudo enviar. Intenta de nuevo.');
+    } finally {
+      setLeadLoading(false);
+    }
+  };
 
   const testimonios = [
     { nombre: "Ing. Carlos Mendoza", cargo: "Gerente de Operaciones", texto: "Gracias a la asesoría en ISO 9001 y al buscador de licitaciones, logramos ganar nuestro primer contrato estatal.", avatar: "CM" },
@@ -394,48 +437,116 @@ function App() {
               <div className="text-xs text-center text-gray-400 mb-2">Hoy</div>
               <div className="bg-[#e6f0ff] p-3 rounded-2xl rounded-tl-none self-start text-sm text-[#0c1354] max-w-[85%] border border-blue-100">
                 ¡Hola! Soy tu asistente virtual conectado. 🤖 <br/><br/>
-                Para encontrar las licitaciones (prod6) de esta semana que coincidan contigo, por favor <strong>ingresa tu RUC:</strong>
+                Puedes escribir tu <strong>RUC</strong>, una pregunta sobre licitaciones o lo que necesites; te responderemos según tu mensaje.
               </div>
             </div>
 
             {/* Input de Mensaje */}
-            <div className="p-3 bg-white border-t border-gray-200 flex gap-2 items-center">
-              <input type="text" placeholder="Escribe tu RUC aquí..." className="flex-1 border border-gray-300 rounded-full px-4 py-2 text-sm outline-none focus:border-[#0055ff] focus:ring-1 focus:ring-[#0055ff]" />
-              <button className="bg-[#ffd600] text-[#0c1354] p-2 rounded-full hover:bg-[#e5c100] transition-colors">
+            <div className="p-3 bg-white border-t border-gray-200 flex gap-2 items-end">
+              <input
+                type="text"
+                inputMode="text"
+                autoComplete="off"
+                placeholder="RUC (11 dígitos) o tu consulta…"
+                value={ruc}
+                onChange={handleRucChange}
+                disabled={leadLoading}
+                maxLength={MAX_LANDING_MESSAGE_LENGTH}
+                className="flex-1 min-h-[44px] rounded-2xl border border-gray-300 px-4 py-2.5 text-sm outline-none focus:border-[#0055ff] focus:ring-1 focus:ring-[#0055ff] disabled:opacity-60"
+                aria-label="Mensaje para el asistente"
+              />
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={leadLoading}
+                className="shrink-0 bg-[#ffd600] text-[#0c1354] p-2 rounded-full hover:bg-[#e5c100] transition-colors disabled:opacity-60 disabled:pointer-events-none"
+                aria-label="Enviar mensaje"
+              >
                 <svg className="w-5 h-5 translate-x-0.5" fill="currentColor" viewBox="0 0 20 20"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z"></path></svg>
               </button>
             </div>
           </div>
         </div>
 
-        {/* Fila de Botones */}
-        <div className="flex gap-4 items-center">
-          
-          <button 
-            onClick={() => setIsWebChatOpen(!isWebChatOpen)}
-            className="bg-[#0c1354] text-[#ffd600] p-4 rounded-full shadow-[0_4px_14px_0_rgba(12,19,84,0.39)] hover:scale-110 transition-all duration-300 flex items-center justify-center group relative"
-            aria-label="Abrir Buscador Web"
-          >
-            <span className="absolute right-full mr-4 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-              Chat Web
-            </span>
-            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
-          </button>
+        <div className="flex flex-col items-end gap-2 max-w-[min(100vw-3rem,26rem)]">
+          {leadSuccess && (
+            <p className="rounded-lg bg-[#25D366]/15 text-[#0c1354] border border-[#25D366]/40 px-3 py-2 text-xs font-medium text-right shadow-sm">
+              ¡Recibido! En breve te llegará el reporte a tu WhatsApp.
+            </p>
+          )}
+          {leadError && (
+            <p className="rounded-lg bg-red-50 text-red-800 border border-red-200 px-3 py-2 text-xs text-right">
+              {leadError}
+            </p>
+          )}
 
-          <a
-            href={linkWhatsApp}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="bg-[#25D366] text-white p-4 rounded-full shadow-[0_4px_14px_0_rgba(37,211,102,0.39)] hover:scale-110 transition-all duration-300 flex items-center justify-center group relative"
-            aria-label="Contactar por WhatsApp"
-          >
-            <span className="absolute right-full mr-4 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-              WhatsApp
-            </span>
-            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" viewBox="0 0 16 16">
-              <path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/>
-            </svg>
-          </a>
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            <input
+              type="text"
+              inputMode="text"
+              autoComplete="off"
+              placeholder="RUC o mensaje…"
+              value={ruc}
+              onChange={handleRucChange}
+              disabled={leadLoading}
+              maxLength={MAX_LANDING_MESSAGE_LENGTH}
+              className="w-44 sm:w-56 min-h-[44px] rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 shadow-md outline-none transition focus:border-[#25D366] focus:ring-2 focus:ring-[#25D366]/30 disabled:opacity-60"
+              aria-label="RUC o mensaje para LicitApp"
+            />
+
+            <div className="flex gap-4 items-center">
+              <button
+                type="button"
+                onClick={() => setIsWebChatOpen(!isWebChatOpen)}
+                className="bg-[#0c1354] text-[#ffd600] p-4 rounded-full shadow-[0_4px_14px_0_rgba(12,19,84,0.39)] hover:scale-110 transition-all duration-300 flex items-center justify-center group relative"
+                aria-label="Abrir Buscador Web"
+              >
+                <span className="absolute right-full mr-4 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                  Chat Web
+                </span>
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={leadLoading}
+                className="bg-[#25D366] text-white p-4 rounded-full shadow-[0_4px_14px_0_rgba(37,211,102,0.39)] hover:scale-110 transition-all duration-300 flex items-center justify-center group relative disabled:pointer-events-none disabled:opacity-70 disabled:hover:scale-100"
+                aria-label={leadLoading ? 'Enviando…' : 'Enviar mensaje y recibir respuesta por WhatsApp'}
+              >
+                <span className="absolute right-full mr-4 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                  {leadLoading ? 'Buscando…' : 'WhatsApp'}
+                </span>
+                {leadLoading ? (
+                  <svg
+                    className="h-8 w-8 animate-spin"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    aria-hidden
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    />
+                  </svg>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" viewBox="0 0 16 16">
+                    <path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/>
+                  </svg>
+                )}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
